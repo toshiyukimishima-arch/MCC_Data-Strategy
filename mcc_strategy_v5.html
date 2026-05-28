@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCC × Firework 戦略整理</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#0f1117; --surface:#161922; --surface2:#1d2130; --border:#262c3d;
+    --blue:#4f9ef7; --yellow:#f7c94f; --green:#4ff7b0; --red:#f76b6b;
+    --text:#dde2f0; --sub:#7a8499; --dim:#424d68;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+  .header{padding:18px 32px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:14px;}
+  .badge{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;padding:3px 10px;border-radius:2px;background:#1e2d4a;color:var(--blue);border:1px solid rgba(79,158,247,.3);}
+  .header-title{font-size:14px;font-weight:500;}
+  .header-sub{font-size:11px;color:var(--sub);font-family:'DM Mono',monospace;margin-left:auto;}
+
+  .tab-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;overflow-x:auto;}
+  .tab-btn{font-family:'Noto Sans JP',sans-serif;font-size:12px;font-weight:500;padding:13px 18px;border:none;background:transparent;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:7px;}
+  .tab-btn:hover{color:var(--text);}
+  .tab-btn.active{color:var(--text);border-bottom-color:var(--text);}
+  .tab-num{font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);}
+
+  .content{padding:28px 32px;max-width:980px;margin:0 auto;}
+  .tab-panel{display:none;animation:fadeUp .22s ease;}
+  .tab-panel.active{display:block;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+
+  .sec-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px;}
+  .sec-title{font-size:20px;font-weight:700;margin-bottom:5px;line-height:1.3;}
+  .sec-desc{font-size:13px;color:var(--sub);line-height:1.75;margin-bottom:24px;}
+
+  /* CARD */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 22px;margin-bottom:14px;}
+  .card-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
+  .card-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px;}
+  .card-title{font-size:14px;font-weight:600;margin-bottom:2px;}
+  .card-sub{font-size:12px;color:var(--sub);}
+
+  /* REPORT LIST — ベースとADDを混在させる */
+  .rlist{list-style:none;}
+  .rlist li{font-size:13px;line-height:1.7;padding:7px 0 7px 26px;position:relative;border-bottom:1px solid var(--border);}
+  .rlist li:last-child{border-bottom:none;}
+  /* ベース（Firework既存） */
+  .rlist li.base{color:var(--sub);}
+  .rlist li.base::before{content:'›';position:absolute;left:6px;color:var(--blue);font-size:14px;}
+  /* ADD（MCCMデータで追加） */
+  .rlist li.add{color:var(--text);}
+  .rlist li.add::before{
+    content:'+ ADD';position:absolute;left:0;top:9px;
+    font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.04em;
+    background:rgba(247,201,79,.18);color:var(--yellow);
+    padding:1px 4px;border-radius:2px;white-space:nowrap;
+  }
+  .rlist li strong{color:var(--text);font-weight:600;}
+  .rlist li.add strong{color:var(--yellow);}
+
+  /* ADD LEGEND */
+  .legend-inline{display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);}
+  .leg-dot{width:8px;height:8px;border-radius:50%;}
+  .leg-badge{font-family:'DM Mono',monospace;font-size:9px;background:rgba(247,201,79,.18);color:var(--yellow);padding:1px 5px;border-radius:2px;}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:640px){.two-col{grid-template-columns:1fr;}}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  .tbl th{text-align:left;font-size:10px;font-family:'DM Mono',monospace;color:var(--dim);letter-spacing:.07em;padding:8px 12px;border-bottom:1px solid var(--border);font-weight:400;}
+  .tbl td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--sub);vertical-align:top;line-height:1.6;}
+  .tbl tr:last-child td{border-bottom:none;}
+  .tbl td:first-child{color:var(--text);font-weight:500;}
+  .tbl tr.add-row td{background:rgba(247,201,79,.04);}
+  .tbl tr.add-row td:first-child{color:var(--yellow);}
+
+  .tag{display:inline-block;font-size:10px;font-family:'DM Mono',monospace;padding:2px 8px;border-radius:3px;margin:2px 2px 0 0;}
+  .t-blue{background:rgba(79,158,247,.12);color:var(--blue);}
+  .t-yellow{background:rgba(247,201,79,.12);color:var(--yellow);}
+  .t-green{background:rgba(79,247,176,.12);color:var(--green);}
+  .t-red{background:rgba(247,107,107,.12);color:var(--red);}
+  .t-dim{background:rgba(255,255,255,.05);color:var(--sub);}
+
+  .hl{border-left:3px solid var(--blue);background:rgba(79,158,247,.06);padding:12px 16px;border-radius:0 6px 6px 0;margin:14px 0;font-size:13px;color:var(--sub);line-height:1.8;}
+  .hl.y{border-left-color:var(--yellow);background:rgba(247,201,79,.06);}
+  .hl.g{border-left-color:var(--green);background:rgba(79,247,176,.06);}
+  .hl.r{border-left-color:var(--red);background:rgba(247,107,107,.06);}
+  .hl strong{color:var(--text);font-weight:600;}
+
+  .cat{display:flex;align-items:center;gap:9px;margin:24px 0 10px;}
+  .cat-bar{width:3px;height:18px;border-radius:2px;flex-shrink:0;}
+  .cat-title{font-size:13px;font-weight:600;}
+  .cat-note{font-size:12px;color:var(--sub);margin-top:1px;}
+
+  /* STAGE FLOW */
+  .stage-flow{display:grid;grid-template-columns:1fr 14px 1fr 14px 1fr;align-items:start;gap:0;margin:16px 0 24px;}
+  .stage-box{background:var(--surface2);border-radius:8px;padding:14px 16px;}
+  .stage-box.s1{border:1px solid rgba(79,158,247,.35);}
+  .stage-box.s2{border:1px solid rgba(247,201,79,.35);}
+  .stage-box.s3{border:1px solid rgba(79,247,176,.35);}
+  .stage-arrow{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:18px;padding-top:18px;}
+  .stage-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;margin-bottom:5px;}
+  .s1 .stage-label{color:var(--blue);}
+  .s2 .stage-label{color:var(--yellow);}
+  .s3 .stage-label{color:var(--green);}
+  .stage-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+  .stage-items{font-size:12px;color:var(--sub);line-height:1.9;}
+  .stage-items span{display:block;}
+  .stage-items span.add-item{color:var(--yellow);}
+  .stage-items span.add-item::before{content:'+ ';font-family:'DM Mono',monospace;}
+
+  /* ROADMAP */
+  .rm-wrap{position:relative;}
+  .rm-line{position:absolute;left:15px;top:32px;bottom:24px;width:2px;background:var(--border);}
+  .rm-item{display:flex;gap:16px;margin-bottom:0;}
+  .rm-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;flex-shrink:0;margin-top:2px;position:relative;z-index:1;}
+  .rm-body{padding-bottom:24px;flex:1;}
+  .rm-phase{font-size:10px;font-family:'DM Mono',monospace;color:var(--dim);margin-bottom:3px;letter-spacing:.07em;}
+  .rm-title{font-size:14px;font-weight:600;margin-bottom:5px;}
+  .rm-desc{font-size:13px;color:var(--sub);line-height:1.75;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 9px;border-radius:20px;font-family:'DM Mono',monospace;}
+  .pill::before{content:'';width:5px;height:5px;border-radius:50%;}
+  .pill-done{background:rgba(79,247,176,.1);color:var(--green);}
+  .pill-done::before{background:var(--green);}
+  .pill-no{background:rgba(247,107,107,.1);color:var(--red);}
+  .pill-no::before{background:var(--red);}
+  .pill-part{background:rgba(247,201,79,.1);color:var(--yellow);}
+  .pill-part::before{background:var(--yellow);}
+  .pill-future{background:rgba(79,158,247,.1);color:var(--blue);}
+  .pill-future::before{background:var(--blue);}
+
+  hr.div{border:none;border-top:1px solid var(--border);margin:20px 0;}
+  .source-note{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;margin-top:8px;}
+
+  .limit-note{background:rgba(247,107,107,.05);border:1px solid rgba(247,107,107,.18);border-radius:6px;padding:9px 13px;margin-top:10px;font-size:12px;color:var(--sub);line-height:1.7;}
+  .limit-note strong{color:var(--red);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="badge">FIREWORK × MCC</span>
+  <span class="header-title">リテールメディア戦略整理</span>
+  <span class="header-sub">2026.05</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="go('s01',this)"><span class="tab-num">01</span>現状サマリー</button>
+  <button class="tab-btn" onclick="go('s02',this)"><span class="tab-num">02</span>目指すゴール</button>
+  <button class="tab-btn" onclick="go('s03',this)"><span class="tab-num">03</span>現状とのギャップ</button>
+  <button class="tab-btn" onclick="go('s04',this)"><span class="tab-num">04</span>具体的なアクション</button>
+  <button class="tab-btn" onclick="go('s05',this)"><span class="tab-num">05</span>必要なデータポイント</button>
+</div>
+
+<div class="content">
+
+<!-- ===== 01 現状サマリー ===== -->
+<div class="tab-panel active" id="s01">
+  <div class="sec-label">CURRENT STATE</div>
+  <div class="sec-title">現状サマリー</div>
+  <div class="sec-desc">Fireworkが現在提供しているレポートの全体像と、MCCMから新たに共有された購買データを加えることで何が追加・拡張できるかを整理しました。</div>
+
+  <div class="stage-flow">
+    <div class="stage-box s1">
+      <div class="stage-label">STEP 1 ／ 現在提供中</div>
+      <div class="stage-title">配信パフォーマンス<br>レポート</div>
+      <div class="stage-items">
+        <span>視聴・エンゲージ指標</span>
+        <span>競合ベンチマーク</span>
+        <span>KPI進捗管理</span>
+        <span>配信別振り返り</span>
+        <span>施策改善提案</span>
+      </div>
+    </div>
+    <div class="stage-arrow">→</div>
+    <div class="stage-box s2">
+      <div class="stage-label">STEP 2 ／ MCCMデータを加えて進化</div>
+      <div class="stage-title">購買効果<br>レポート</div>
+      <div class="stage-items">
+        <span>視聴・エンゲージ指標（継続）</span>
+        <span class="add-item">購買前後比・来店率</span>
+        <span class="add-item">店舗/EC別購買分析</span>
+        <span class="add-item">エリア・PI値分析</span>
+        <span class="add-item">顧客属性・競合流入</span>
+      </div>
+    </div>
+    <div class="stage-arrow">→</div>
+    <div class="stage-box s3">
+      <div class="stage-label">STEP 3 ／ 追加取得で実現</div>
+      <div class="stage-title">長期ジャーニー<br>・横断分析</div>
+      <div class="stage-items">
+        <span>遅延購買・LTV追跡</span>
+        <span>カテゴリ波及効果</span>
+        <span>ブランド横断比較</span>
+        <span>スタッフ動画承認プラットフォーム</span>
+        <span>AI FAQ連携</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend-inline">
+    <div class="legend-item"><div class="leg-dot" style="background:var(--blue)"></div>Fireworkが現在提供中（STEP 1）</div>
+    <div class="legend-item"><span class="leg-badge">+ ADD</span>MCCMデータで追加できる項目（STEP 2）</div>
+  </div>
+
+  <hr class="div" style="margin-top:4px">
+
+  <!-- A: 視聴・エンゲージメント -->
+  <div class="cat"><div class="cat-bar" style="background:var(--blue)"></div><div><div class="cat-title">A. ライブ配信の視聴・エンゲージメント</div><div class="cat-note">月次コンテンツ分科会で毎月報告</div></div></div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head"><div class="card-icon" style="background:rgba(79,158,247,.12)">📡</div><div><div class="card-title">視聴・エンゲージ指標</div></div></div>
+      <ul class="rlist">
+        <li class="base">視聴者数（ライブ・アーカイブ別）、1分あたり視聴者数</li>
+        <li class="base">平均視聴分数の推移・目標対比</li>
+        <li class="base">商品クリック率（CTR）・コメント参加率・いいね参加率</li>
+        <li class="base">リピーター比率・リピーターCTR・リピーターコメント率</li>
+        <li class="base">いいね×コメント×視聴分数の相関（エンゲージユーザー分析）</li>
+        <li class="base">クーポン施策・Xフォロリポキャンペーンの効果検証</li>
+        <li class="base">商品カードクリックランキング TOP30（ライブ・アーカイブ別）</li>
+        <li class="add"><strong>視聴深度（fw_progress）× 購買率の相関</strong>：「深く見た人ほど買う」仮説を初めて定量検証できる（SQLデータ存在・未集計）</li>
+      </ul>
+      <p class="source-note">出典：月次コンテンツ分科会（最新 2026.5.7）</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-icon" style="background:rgba(79,158,247,.12)">🎬</div><div><div class="card-title">配信別振り返り・施策改善</div></div></div>
+      <ul class="rlist">
+        <li class="base">配信ごとの数値総括（バンドエイド・ビオレ・&NINE等）</li>
+        <li class="base">コメント分析（属性別件数・購入検討率・ユーザーランキング）</li>
+        <li class="base">視聴分数とクーポン施策の連動効果</li>
+        <li class="base">商品別・シーン別クリック数ランキング</li>
+        <li class="base">次回配信に向けた施策案・出演者向けテクニック</li>
+        <li class="add"><strong>コメント「購入検討」率 × 実際の購買転換率の突合</strong>：「買いに行く」というコメントが実際の購買にどれだけつながっているかを検証</li>
+      </ul>
+      <p class="source-note">出典：月次コンテンツ分科会（最新 2026.5.7）</p>
+    </div>
+  </div>
+
+  <!-- B: 競合・戦略 -->
+  <div class="cat"><div class="cat-bar" style="background:var(--blue)"></div><div><div class="cat-title">B. 競合ベンチマーク・戦略提案</div><div class="cat-note">年次ビジネスレビュー・月次分科会で提供</div></div></div>
+  <div class="card">
+    <ul class="rlist">
+      <li class="base">競合4社との配信数値比較（視聴者数・CTR・コメント率・視聴分数）</li>
+      <li class="base">リピーター比率の業界比較（ライブ配信は業界最下位・改善傾向あり）</li>
+      <li class="base">他社の強み分析（出演者・購買誘導・コンテンツ力・リーチ）</li>
+      <li class="base">2026年度KPI目標設定と進捗管理</li>
+      <li class="base">リピーターを増やす3つの戦略（推し・おトク・いつも）</li>
+      <li class="base">協賛配信の体制改善案（レギュレーション・薬事チェック）</li>
+      <li class="add"><strong>「視聴指標」と「購買転換率」を合わせた競合比較</strong>：現在は視聴指標のみの競合比較を、購買効果（リフト・来店率）も含めた総合比較に拡張できる</li>
+    </ul>
+    <p class="source-note">出典：年次ビジネスレビュー・月次コンテンツ分科会</p>
+  </div>
+
+  <!-- C: 事業資産 -->
+  <div class="cat"><div class="cat-bar" style="background:var(--blue)"></div><div><div class="cat-title">C. 事業資産・実績の可視化</div><div class="cat-note">年次ビジネスレビューで報告</div></div></div>
+  <div class="card">
+    <ul class="rlist">
+      <li class="base">7つの資産の整理（視聴者・コンテンツ・メーカー関係・データ・ノウハウ・出演者・パートナー）</li>
+      <li class="base">年度別 視聴者数推移（ライブ・アーカイブ累計）</li>
+      <li class="base">年度別 協賛実績推移（実施回数・売上合計）</li>
+      <li class="base">ライブ配信の変遷（2024年4月〜現在）</li>
+      <li class="base">内製化レクチャー進捗・想定スケジュール</li>
+      <li class="add"><strong>配信回ごとの購買効果実績の蓄積・年次推移</strong>：「視聴者数が増えた」だけでなく「購買転換率がどう変化したか」を年次で並べた媒体価値の証明に</li>
+    </ul>
+    <p class="source-note">出典：年次ビジネスレビュー</p>
+  </div>
+
+  <!-- D: MCCMデータ追加 -->
+  <div class="cat"><div class="cat-bar" style="background:var(--yellow)"></div><div><div class="cat-title">D. MCCMデータで新たに追加される分析領域</div><div class="cat-note">現行レポートに存在しない全く新しい項目。ライブ配信単位で取得</div></div></div>
+
+  <div class="hl y"><strong>データの位置づけ：</strong>MCCMから提供された各メーカーの分析FMTは<strong>ライブ配信単位のスナップショットデータ</strong>。各配信（花王・キャンメイク・クラシエ等）ごとに個別に存在している。取得時期・対象商品が異なるため、ブランド間の横断比較には不向きだが、<strong>各配信の購買効果を初めて定量的に報告できる</strong>。</div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head"><div class="card-icon" style="background:rgba(247,201,79,.12)">🛒</div><div><div class="card-title">購買計測（配信単位）</div><div class="card-sub">現行レポートにない新規項目</div></div></div>
+      <ul class="rlist">
+        <li class="add"><strong>購買前後比</strong>（施策29日間 vs 比較29日間）：動画視聴者 / 非視聴者の購買者数・売上・数量の差分</li>
+        <li class="add"><strong>来店率・購入率リフト</strong>：視聴者が未視聴者に比べて何倍購入しやすいか</li>
+        <li class="add"><strong>日別購買推移</strong>：配信当日〜数日後のスパイクがどのタイミングで発生するか</li>
+        <li class="add"><strong>SKU別販売数量・前後比</strong>：どの商品が配信で最も購買転換したか</li>
+        <li class="add"><strong>動画視聴者の購買金額・粗利</strong>：視聴者が実際にいくら購入したか</li>
+      </ul>
+      <div class="limit-note"><strong>⚠️ 制約：</strong>各配信の対象商品・対象期間に限定されたスナップショット。</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-icon" style="background:rgba(247,201,79,.12)">🗾</div><div><div class="card-title">エリア・店舗分析（配信単位）</div><div class="card-sub">現行レポートにない新規項目</div></div></div>
+      <ul class="rlist">
+        <li class="add"><strong>都道府県・店舗別の売上金額・来店数・購買者数</strong></li>
+        <li class="add"><strong>PI値（購買効率）によるエリアランキング</strong>：どのエリアで最も効率よく購買が発生したか</li>
+        <li class="add"><strong>ECと店舗の購買チャネル比較</strong>：ライブ配信がオンラインとオフラインのどちらに強く作用したか</li>
+        <li class="add"><strong>高PI値エリアへのデータ根拠付き店舗施策提案</strong>：「サイネージを置くといい」を数値で裏付ける</li>
+      </ul>
+      <div class="limit-note"><strong>⚠️ 制約：</strong>配信ごとのエリアデータ。汎用的な傾向を出すには複数配信の蓄積が必要。</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-icon" style="background:rgba(247,201,79,.12)">👥</div><div><div class="card-title">顧客属性・競合分析（配信単位）</div><div class="card-sub">現行レポートにない新規項目</div></div></div>
+      <ul class="rlist">
+        <li class="add"><strong>性別・年代構成比</strong>（視聴者 / 購入者 / 比較カテゴリの3軸比較）</li>
+        <li class="add"><strong>顧客セグメント11種の分布</strong>（美活女子・美健康セレブ等）：どのセグメントが最も購買に転換したか</li>
+        <li class="add"><strong>購買意識スコア37軸</strong>：視聴者と購入者の意識差分。コンテンツ設計への示唆</li>
+        <li class="add"><strong>競合ブランドの流入・流出</strong>：配信でどの競合から顧客を獲得・流出したか</li>
+      </ul>
+      <div class="limit-note"><strong>⚠️ 制約：</strong>配信単位の計測。継続的な変化追跡には複数配信の蓄積が必要。</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-icon" style="background:rgba(247,201,79,.12)">📑</div><div><div class="card-title">スポンサー向けレポートの内製化</div><div class="card-sub">MCCの負荷削減と考察の深化</div></div></div>
+      <ul class="rlist">
+        <li class="add"><strong>施策概要・視聴結果・購買効果の統合レポート</strong>：現在MCCがスポンサー向けに個別作成しているレポートをFireworkが主導で内製化</li>
+        <li class="add"><strong>SNS告知のインプレッション × 視聴誘導の効果</strong>：告知からライブ配信ページへの流入経路を一体化して報告</li>
+        <li class="add">Fireworkが購買考察を加えることで、MCCの報告負荷を削減しつつレポートの質を向上</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hl r" style="margin-top:4px"><strong>STEP 1＋2でも見えないこと（STEP 3）：</strong>全データが「特定配信・特定商品・前後29日間」のスナップショット。視聴後の遅延購買・長期LTV変化・カテゴリ波及・同一期間ブランド横断比較・スタッフ別動画パフォーマンスは、承認プラットフォームの整備後に計測できる。</div>
+</div>
+
+<!-- ===== 02 目指すゴール ===== -->
+<div class="tab-panel" id="s02">
+  <div class="sec-label">VISION & GOAL</div>
+  <div class="sec-title">目指すゴール</div>
+  <div class="sec-desc">インサイトレポートの充実・データに基づく施策への転換・ライブ配信ならではのPDP進化という3つの軸で、リテールメディアとしての価値を段階的に高めていく。</div>
+
+  <!-- 大目標 -->
+  <div class="hl"><strong>大目標：</strong>ライブ配信 × インサイト分析 × デジタル接客（PDP）を一体化させることで、<strong>D2Cサイトや他社のPDPでは表現できない「マツココオンライン独自の購買体験」</strong>を実現し、MCCをリテールメディアとして中長期的に成長させる</div>
+
+  <hr class="div">
+
+  <!-- 3本柱 -->
+  <div class="cat"><div class="cat-bar" style="background:var(--blue)"></div><div><div class="cat-title">柱① インサイトレポートの充実 → メーカーへの価値提供を拡大する</div></div></div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(79,158,247,.12)">📊</div><div><div class="card-title">目指す姿</div><div class="card-sub">「視聴数が伸びました」から「御社ブランドの顧客行動がこう変わりました」へ</div></div></div>
+    <div class="hl" style="margin-top:0">ライブ配信のインサイト分析が充実することで、メーカーが従来の媒体（テレビCM・雑誌広告など）では得られなかった「実購買者の行動データ」を提供できる。これ自体がリテールメディア施策としての競争優位になる。</div>
+    <table class="tbl">
+      <tr><th>インサイト項目</th><th>メーカーに提供できる価値</th><th>施策への転換例</th></tr>
+      <tr>
+        <td>視聴深度 × 購買率の相関</td>
+        <td>「何分見た人がどれだけ買うか」が分かる。コンテンツの最適な尺・構成をデータで示せる</td>
+        <td>→ 購買転換しやすい商品紹介ゾーンの設計、配信時間の最適化提案</td>
+      </tr>
+      <tr>
+        <td>顧客セグメント × 購買転換率</td>
+        <td>「どのセグメントが最も御社商品を買うか」が分かる。TVCMでは不可能なターゲット精度</td>
+        <td>→ 「美活女子」セグメント向けの配信企画優先度を上げる提案、協賛商品選定の根拠に</td>
+      </tr>
+      <tr>
+        <td>コメント購入検討率 × 実購買の突合</td>
+        <td>「買いに行く」というコメントが実際にどれだけ購買につながるかを証明できる</td>
+        <td>→ コメント促進施策（実演・限定訴求）の優先度を定量根拠で示す</td>
+      </tr>
+      <tr>
+        <td>遅延購買・LTV追跡（STEP 3）</td>
+        <td>「配信の数週間後に店舗で購入する」という遅延効果を初めて証明できる</td>
+        <td>→ 「リピーター育成キャンペーン」「視聴者限定クーポン」の投資根拠をデータで提示</td>
+      </tr>
+      <tr>
+        <td>ブランド横断ベンチマーク（STEP 3）</td>
+        <td>「コスメ系が最も購買転換が高い」等をデータで証明し、協賛受注の優先カテゴリを提示できる</td>
+        <td>→ 年間協賛プランの組み方・価格設定の根拠として活用</td>
+      </tr>
+    </table>
+  </div>
+
+  <hr class="div">
+
+  <div class="cat"><div class="cat-bar" style="background:var(--yellow)"></div><div><div class="cat-title">柱② 分析結果を施策に転換する流れをつくる</div></div></div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,201,79,.12)">🔄</div><div><div class="card-title">目指す姿</div><div class="card-sub">「レポートを出して終わり」から「データが次の施策を動かす」サイクルへ</div></div></div>
+    <div class="hl y" style="margin-top:0">現状はデータを提供しても施策が動かないケースが多い。「この分析結果が出たから、次はこの施策をやる」という意思決定フローを作ることで、MCC内の施策優先度が上がり、継続的なチャーン対策にもなる。</div>
+
+    <table class="tbl">
+      <tr><th>分析結果</th><th>転換できる施策</th><th>期待効果</th></tr>
+      <tr>
+        <td>高PI値エリアの特定</td>
+        <td>該当エリア店舗へのデジタルサイネージ設置・売場強化を優先的に提案</td>
+        <td>「サイネージを置くといい」という抽象提案からデータ根拠付きの具体提案に変わり、MCCが動ける</td>
+      </tr>
+      <tr>
+        <td>リピーター比率の上昇傾向</td>
+        <td>視聴者限定クーポン・ポイントアップ施策の優先実施を提案</td>
+        <td>「いたずらにクーポンは出せない」という壁をデータで突破し、リピーター化を加速</td>
+      </tr>
+      <tr>
+        <td>コスメ系の購買転換が高い</td>
+        <td>コスメ特化の配信枠増設・協賛プランのコスメ優先提案</td>
+        <td>協賛売上の単価・頻度を上げる根拠になる</td>
+      </tr>
+      <tr>
+        <td>視聴者のLTV・来店頻度増加（STEP 3）</td>
+        <td>スタッフ動画承認プラットフォームの活用でスタッフ発信コンテンツをPDP・配信に組み込む</td>
+        <td>スタッフ別の動画パフォーマンスが可視化され、MCCがインセンティブ設計を行うための根拠データが揃う</td>
+      </tr>
+      <tr>
+        <td>特定セグメントの購買転換が高い</td>
+        <td>該当セグメントへのターゲティングプッシュ通知・配信告知の最適化</td>
+        <td>アプリ内誘導の効率が上がり、視聴者数・購買転換の両方を改善</td>
+      </tr>
+    </table>
+  </div>
+
+  <hr class="div">
+
+  <div class="cat"><div class="cat-bar" style="background:var(--green)"></div><div><div class="cat-title">柱③ ライブ配信ならではのPDPへ進化する</div></div></div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(79,247,176,.12)">🛍</div><div><div class="card-title">目指す姿</div><div class="card-sub">リテールコネクト参画により、D2Cサイトや他社のPDPでは表現できない独自体験をライブ配信上で実現する</div></div></div>
+    <div class="hl g" style="margin-top:0">ライブ配信を通じてこれまで蓄積してきたインサイト・動画アセット・顧客データを活用することで、ブランドPDPに組み込むショート動画やAI接客エージェントを「他では再現できない独自コンテンツ」として差別化できる。</div>
+
+    <div class="two-col">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-head"><div class="card-icon" style="background:rgba(79,247,176,.12)">🎬</div><div><div class="card-title">ショート動画のPDP組み込み</div></div></div>
+        <ul class="rlist">
+          <li class="base">ライブ配信のアーカイブ・ショート動画をPDPに組み込み、商品ページ上で「実際の使用感・実演」を訴求</li>
+          <li class="base">D2Cサイトが持っていない「ドラッグストア利用者のリアルな声」として差別化できる</li>
+          <li class="base">「購買転換率が高いシーン」の分析データをもとに、どの動画素材をPDPに使うかを最適化</li>
+          <li class="base">視聴者データから「このセグメントに効くコンテンツ」を選別し、パーソナライズされた動画表示へ</li>
+        </ul>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-head"><div class="card-icon" style="background:rgba(79,247,176,.12)">🤖</div><div><div class="card-title">AI接客エージェントの導入</div></div></div>
+        <ul class="rlist">
+          <li class="base">ライブ配信で蓄積されたQ&Aデータ・コメント分析をAI接客エージェントに活用</li>
+          <li class="base">メーカーが作成した「商品説明」だけでなく、「ライブ配信で実際によく聞かれた質問」に基づく回答が可能になる</li>
+          <li class="base">「美活女子セグメントが多い」等の顧客属性データを反映した、ターゲットに刺さる接客設計</li>
+          <li class="base">D2Cや他社リテールのPDPが持てない「リアルな購買文脈に基づいたAI」として独自価値を生む</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+    <table class="tbl">
+      <tr><th>比較軸</th><th>D2C・他社PDPの限界</th><th>ライブ配信PDPの独自性</th></tr>
+      <tr>
+        <td>動画コンテンツ</td>
+        <td>メーカー制作の広告動画のみ。実際の使用感が伝わりにくい</td>
+        <td>ライブ配信の実演・アーカイブをそのまま活用。購買転換率の高いシーンを優先表示</td>
+      </tr>
+      <tr>
+        <td>AI接客の回答品質</td>
+        <td>商品スペックのみ。購買者の実際の疑問に答えられない</td>
+        <td>ライブ配信のコメント・Q&Aデータが蓄積されており、「実際に聞かれた質問」に回答できる</td>
+      </tr>
+      <tr>
+        <td>顧客データの深さ</td>
+        <td>自社EC利用者のデータのみ</td>
+        <td>goopon_idと連携した購買・来店・視聴データで、実店舗購買者の行動も反映できる</td>
+      </tr>
+    </table>
+    </div>
+  </div>
+
+  <hr class="div">
+
+  <!-- 施策拡大ロードマップ -->
+  <div class="cat"><div class="cat-bar" style="background:var(--red)"></div><div><div class="cat-title">施策の中長期的な拡大イメージ</div></div></div>
+
+  <div class="card">
+    <table class="tbl">
+      <tr><th>フェーズ</th><th>主な施策</th><th>目指す状態</th></tr>
+      <tr>
+        <td>今〜6ヶ月</td>
+        <td>購買効果レポート内製化・PI値施策提案・3段構成提案資料の作成</td>
+        <td>「データがMCCの施策を動かす」最初の実績を作る</td>
+      </tr>
+      <tr>
+        <td>6ヶ月〜1年</td>
+        <td>長期購買データ取得・PDPへのショート動画・AI FAQ導入開始・スタッフ動画承認プラットフォームの導入</td>
+        <td>ライブ配信 × PDP × データが連動したマツココオンライン独自の購買体験が始まる</td>
+      </tr>
+      <tr>
+        <td>1年〜2年</td>
+        <td>フルジャーニー分析・ブランド横断レポート・AI接客エージェントの精度向上・リテールコネクト参画</td>
+        <td>MCCが「データを持つリテールメディア」として業界内で独自ポジションを確立。協賛単価・頻度の拡大へ</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 03 現状とのギャップ ===== -->
+<div class="tab-panel" id="s03">
+  <div class="sec-label">GAP ANALYSIS</div>
+  <div class="sec-title">現状とのギャップ</div>
+  <div class="sec-desc">「目指すゴール」の3つの柱ごとに、そのインサイトを出すために何が足りないか・どのデータで補完できるかを整理しました。</div>
+
+  <!-- 柱①リンク -->
+  <div class="cat"><div class="cat-bar" style="background:var(--blue)"></div><div><div class="cat-title">柱①：インサイトレポートの充実 に向けたギャップ</div><div class="cat-note">「視聴×購買×顧客行動」を深く掘り下げるために必要なデータ</div></div></div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">⏱</div><div><div class="card-title">ギャップ①-A　時間軸の短さ — 遅延購買・LTV追跡ができない</div><div class="card-sub">出したいインサイト：「視聴後X週間での購買貢献」「LTVへの影響」「リピーター化率」</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>全データが「施策前後29日間」のスナップショット。配信後に数週間〜数ヶ月かけて店舗で購入するという遅延購買が一切捕捉できていない。「ライブ配信はLTVに効いている」と言えない状態。</div>
+    <table class="tbl">
+      <tr><th>出したいインサイト</th><th>現状のギャップ</th><th>補完に必要なデータ</th></tr>
+      <tr>
+        <td>視聴後3ヶ月・半年での購買貢献の証明</td>
+        <td>29日間しか見ていないため遅延購買が取れない</td>
+        <td>goopon_id × 購買履歴（6〜12ヶ月分）の提供依頼</td>
+      </tr>
+      <tr>
+        <td>視聴者の来店頻度・購買金額の長期変化</td>
+        <td>施策期間外の行動変化が追えない</td>
+        <td>来店頻度・アプリ接触頻度の長期ログ</td>
+      </tr>
+      <tr>
+        <td>視聴→初回購買→リピーター化の経路</td>
+        <td>リピーターIDと視聴データが突合されていない</td>
+        <td>ライブ視聴者goopon_id × リピーターIDの突合</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">📦</div><div><div class="card-title">ギャップ①-B　商品・カテゴリ範囲の狭さ — 波及効果が見えない</div><div class="card-sub">出したいインサイト：「紹介商品以外への購買波及」「メーカー全体への貢献」</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>各配信データはすべて「施策対象商品のみ」が計測対象。「紹介商品は買わなかったが同メーカーの別商品を買うようになった」「隣接カテゴリへの興味が高まった」という副次効果が完全に見えていない。</div>
+    <table class="tbl">
+      <tr><th>出したいインサイト</th><th>現状のギャップ</th><th>補完に必要なデータ</th></tr>
+      <tr>
+        <td>同一メーカー・他ブランドへの購買波及</td>
+        <td>対象外商品のデータが存在しない</td>
+        <td>同一goopon_idの全カテゴリ購買データ（対象商品外含む）</td>
+      </tr>
+      <tr>
+        <td>スキンケア・ヘアケア等隣接カテゴリへの影響</td>
+        <td>配信で紹介したカテゴリ以外のデータが取れていない</td>
+        <td>購買バスケット全体データ（カテゴリ横断）</td>
+      </tr>
+      <tr>
+        <td>ブランドスイッチの長期追跡</td>
+        <td>競合からの流入は1配信単位のスナップショットのみ</td>
+        <td>goopon_idの長期購買履歴 + ブランド別購買変化ログ</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">📊</div><div><div class="card-title">ギャップ①-C　ブランド横断ベンチマークの不在 — 媒体価値を定量証明できない</div><div class="card-sub">出したいインサイト：「コスメ系が最も購買転換が高い」「媒体としての優位性」</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>各配信データは取得時期・対象商品がすべて異なるため「同じ土俵での比較」ができない。「コスメ系と相性がいい」は定性的な感覚にとどまり、協賛価格や受注優先度の根拠にできていない。</div>
+    <table class="tbl">
+      <tr><th>出したいインサイト</th><th>現状のギャップ</th><th>補完に必要なデータ</th></tr>
+      <tr>
+        <td>カテゴリ別の購買転換率の比較</td>
+        <td>配信期間・商品が異なるため単純比較ができない</td>
+        <td>同一期間中の複数ブランド・カテゴリ全体のベンチマークデータ</td>
+      </tr>
+      <tr>
+        <td>媒体としての投資対効果の定量証明</td>
+        <td>視聴指標の競合比較はできても購買効果の横断比較ができない</td>
+        <td>同一期間のカテゴリ全体購買指数（ベースライン）</td>
+      </tr>
+    </table>
+  </div>
+
+  <hr class="div">
+
+  <!-- 柱②リンク -->
+  <div class="cat"><div class="cat-bar" style="background:var(--yellow)"></div><div><div class="cat-title">柱②：分析結果を施策に転換する流れ に向けたギャップ</div><div class="cat-note">「データが施策を動かす」ために不足している接続</div></div></div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">🏪</div><div><div class="card-title">ギャップ②-A　オフライン施策との接続が弱い</div><div class="card-sub">転換したい施策：PI値エリアへのサイネージ・売場設計の優先度をデータで動かす</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>PI値・エリア別購買データはSTEP 2で取得できているが、「サイネージを置くといい」という提案がデータと接続されていない。提案しても動かないのは根拠の提示方法の問題。</div>
+    <table class="tbl">
+      <tr><th>転換したい施策</th><th>現状のギャップ</th><th>補完に必要なデータ・アクション</th></tr>
+      <tr>
+        <td>高PI値エリアへのサイネージ優先配置</td>
+        <td>PI値データはあるが、提案がコンテンツ企画レベルにとどまり根拠として提示できていない</td>
+        <td>PI値×エリアのデータをビジネス提案フォーマットで整理（STEP 2で対応可能）</td>
+      </tr>
+      <tr>
+        <td>サイネージ設置後の効果計測</td>
+        <td>サイネージ接触と購買の因果関係が証明できない</td>
+        <td>店舗内サイネージ接触ログ × 購買データの連携（STEP 3）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">🎟</div><div><div class="card-title">ギャップ②-B　リピーター施策（クーポン等）の根拠不足</div><div class="card-sub">転換したい施策：「ライブ視聴者限定クーポン」「ポイントアップ」をデータで正当化する</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>「いたずらにクーポンは出せない」という壁がある。リピーター化への貢献データがないため、クーポン投資の費用対効果を説明できず施策が進まない。</div>
+    <table class="tbl">
+      <tr><th>転換したい施策</th><th>現状のギャップ</th><th>補完に必要なデータ</th></tr>
+      <tr>
+        <td>視聴者限定クーポンの費用対効果の証明</td>
+        <td>クーポン利用後のリピーター化率が計測できていない</td>
+        <td>クーポン利用者goopon_id × 以降の購買・来店履歴の追跡</td>
+      </tr>
+      <tr>
+        <td>「視聴ありリピーター」の優位性の証明</td>
+        <td>視聴なしリピーターとの比較対照群がない</td>
+        <td>非視聴リピーターの購買行動データ（対照群として）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">🧑‍🎤</div><div><div class="card-title">ギャップ②-C　スタッフインフルエンサー化を支援するプラットフォームが未整備</div><div class="card-sub">MCCが目指すゴール：スタッフがSNS等で発信した動画を公式コンテンツとして活用する仕組みを作る</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>MCCはスタッフのインフルエンサー化を推進したい意向があるが、スタッフがSNS等で使用した動画を公式コンテンツとして承認・活用するための仕組みが存在しない。現状では個人発信の動画を公式動画として取り込むフローがなく、UGC（ユーザー生成コンテンツ）的な素材をPDPや配信で活かせていない。Fireworkはこの課題に対し、<strong>動画アップロード → 承認 → 公式コンテンツ化</strong>の一連のプラットフォームを提供することで支援する。</div>
+    <table class="tbl">
+      <tr><th>MCCが目指す姿</th><th>現状のギャップ</th><th>Fireworkが提供するプラットフォーム</th></tr>
+      <tr>
+        <td>スタッフがSNSで発信した動画を公式コンテンツとして活用する</td>
+        <td>個人発信動画を公式利用するための承認フローが存在しない。薬機法チェック・ブランドガイドラインとの整合確認も個別対応になっている</td>
+        <td>スタッフが動画をアップロード → 担当者が承認 → 公式動画として配信・PDPに組み込める承認管理プラットフォーム</td>
+      </tr>
+      <tr>
+        <td>承認済みスタッフ動画をPDPやライブ配信に活用する</td>
+        <td>公式・非公式の区別がなく、素材管理が属人的</td>
+        <td>承認ステータス管理・公式コンテンツライブラリとしての一元管理機能</td>
+      </tr>
+      <tr>
+        <td>スタッフごとの動画の効果を把握しインセンティブに活用する（MCC主導）</td>
+        <td>どのスタッフの動画が購買・視聴に貢献したか計測する仕組みがない</td>
+        <td>プラットフォーム上でスタッフ別の動画パフォーマンス（視聴数・クリック数・購買転換）を可視化し、MCCのインセンティブ設計を支援</td>
+      </tr>
+    </table>
+  </div>
+
+  <hr class="div">
+
+  <!-- 柱③リンク -->
+  <div class="cat"><div class="cat-bar" style="background:var(--green)"></div><div><div class="cat-title">柱③：ライブ配信ならではのPDP進化 に向けたギャップ</div><div class="cat-note">「ショート動画 × AI接客」をマツコライブ独自のものにするために必要なデータ</div></div></div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">🎬</div><div><div class="card-title">ギャップ③-A　PDPに組み込む動画の最適化根拠がない</div><div class="card-sub">出したいインサイト：「どのシーン・どの動画がPDP上で購買転換に効くか」</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>ライブ配信のアーカイブ動画はあるが、「どのシーンが購買転換に最も効いたか」のデータがない。PDPに組み込む素材をデータで選べない状態。</div>
+    <table class="tbl">
+      <tr><th>出したいインサイト</th><th>現状のギャップ</th><th>補完に必要なデータ</th></tr>
+      <tr>
+        <td>購買転換率が高かった動画シーン・尺の特定</td>
+        <td>視聴深度（fw_progress）は存在するが未集計・未活用</td>
+        <td>fw_progressの集計 × 購買データとの突合（STEP 1で対応可能）</td>
+      </tr>
+      <tr>
+        <td>顧客セグメント別に効く動画コンテンツの特定</td>
+        <td>セグメントと視聴コンテンツの紐付けができていない</td>
+        <td>顧客セグメントデータ × 視聴シーン × 購買結果の3点突合</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(247,107,107,.12)">🤖</div><div><div class="card-title">ギャップ③-B　AI接客エージェントの学習データが薄い</div><div class="card-sub">出したいインサイト：「ライブで実際に聞かれた質問」をAIに反映させる</div></div></div>
+    <div class="hl r" style="margin-top:0;margin-bottom:12px"><strong>現状の問題：</strong>AI接客エージェントの回答品質はメーカーが用意した商品スペック情報に依存している。ライブ配信のコメント・Q&Aデータが蓄積されているのに、AI学習への活用が構造化されていない。</div>
+    <table class="tbl">
+      <tr><th>実現したい独自価値</th><th>現状のギャップ</th><th>補完に必要なデータ・アクション</th></tr>
+      <tr>
+        <td>「実際に視聴者が聞いた質問」をAIが回答できる</td>
+        <td>コメント・Q&Aデータが蓄積されているが構造化・活用されていない</td>
+        <td>ライブ配信コメントデータのカテゴリ分類 → AI学習データへの変換フロー構築</td>
+      </tr>
+      <tr>
+        <td>購買につながりやすい質問パターンの特定</td>
+        <td>どのQ&Aが購買転換に効いたかを計測できていない</td>
+        <td>Q&Aコメント × 直後の商品クリック・購買データの突合</td>
+      </tr>
+      <tr>
+        <td>顧客属性に合わせたAI接客のパーソナライズ</td>
+        <td>goopon_idと連動した顧客属性の接客エージェントへの反映がない</td>
+        <td>顧客セグメント × 過去購買データのAI接客エージェントとの連携（STEP 3）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="hl g" style="margin-top:20px"><strong>まとめ：ギャップを埋める優先順位</strong><br><br>
+  🔴 <strong>今すぐ対応可能（STEP 1+2のデータ活用）：</strong>fw_progressの集計活用・PI値×オフライン施策提案のフォーマット整備・コメントデータの構造化<br><br>
+  🟡 <strong>MCCMへの依頼で対応可能（STEP 3）：</strong>goopon_id × 長期購買履歴・全カテゴリ購買データ・クーポン追跡・出演者IDの付与<br><br>
+  🟢 <strong>仕組みの構築が必要（中長期）：</strong>サイネージ接触ログ連携・AI接客とgoopon_idの連携・ブランド横断ベンチマークデータの整備</div>
+</div>
+
+<!-- ===== 04 具体的なアクション ===== -->
+<div class="tab-panel" id="s04">
+  <div class="sec-label">ACTION ROADMAP</div>
+  <div class="sec-title">具体的なアクション</div>
+  <div class="sec-desc">3つのSTEPを軸に、次回MCC報告会に向けた具体的なアクションを整理しました。MCCは「仮説を立てれば動いてくれる組織」なので、理想系を先に見せる提案が有効です。</div>
+
+  <div class="rm-wrap">
+    <div class="rm-line"></div>
+
+    <div class="rm-item">
+      <div class="rm-dot" style="background:rgba(79,158,247,.2);color:var(--blue)">S1</div>
+      <div class="rm-body">
+        <div class="rm-phase">STEP 1 ／ 今すぐ着手</div>
+        <div class="rm-title">現在のレポートに「考察とビジネス提案」を追加する</div>
+        <div class="rm-desc">月次分科会・年次レビューで提供している数値レポートに、これまで出せていなかった「ビジネス視点の考察」を加える。特にfwprogressの集計活用と、競合比較レポートへの購買指標追加が即効性が高い。</div>
+        <div style="margin-top:8px"><span class="tag t-blue">fw_progress集計</span><span class="tag t-blue">競合×購買比較</span><span class="tag t-dim">既存レポート深化</span></div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-dot" style="background:rgba(247,201,79,.2);color:var(--yellow)">S2</div>
+      <div class="rm-body">
+        <div class="rm-phase">STEP 2 ／ 次回報告会（MCCMデータの活用）</div>
+        <div class="rm-title">購買効果レポートの内製化 ＋「理想→現状→ギャップ」の3段提案</div>
+        <div class="rm-desc">
+          MCCMから提供された購買データを活用し、MCCがスポンサー向けに作成していたレポートをFirework主導で内製化・強化する。同時に3段構成の提案資料を整理する。<br><br>
+          <strong style="color:var(--text)">① レポートの内製化：</strong>施策概要・視聴結果・購買効果分析（PI値・エリア別・顧客属性含む）を一体化。MCC側の負荷を削減しつつ考察を深化<br><br>
+          <strong style="color:var(--text)">② 3段構成の提案：</strong>「理想の分析像」→「現状のデータで可能なこと」→「ギャップを埋めるために必要なデータ」の順で整理し、STEP 3への橋渡しを行う
+        </div>
+        <div style="margin-top:8px"><span class="tag t-yellow">レポート内製化</span><span class="tag t-yellow">PI値施策提案</span><span class="tag t-yellow">3段構成提案</span><span class="tag t-dim">6月報告会</span></div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-dot" style="background:rgba(79,247,176,.2);color:var(--green)">S3</div>
+      <div class="rm-body">
+        <div class="rm-phase">STEP 3 ／ MCCMへのデータ拡張依頼</div>
+        <div class="rm-title">「これが取れると、こう言えるようになる」を先に見せてから依頼する</div>
+        <div class="rm-desc">STEP 2の提案資料をもとに、現在の配信単位・対象商品限定のデータ提供を拡張してもらうための依頼を行う。優先度の高い依頼は「goopon_idの長期購買履歴」と「対象商品外の全カテゴリ購買データ」の2点。ブランド横断レポートの実現には、同一期間中の複数ブランド・カテゴリ全体のベンチマークデータの整備が前提になる。</div>
+        <div style="margin-top:8px"><span class="tag t-green">goopon_id長期突合</span><span class="tag t-green">全カテゴリ購買履歴</span><span class="tag t-green">ベンチマークデータ整備</span></div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-dot" style="background:rgba(247,107,107,.2);color:var(--red)">S4</div>
+      <div class="rm-body">
+        <div class="rm-phase">STEP 4 ／ 中長期（データ取得後）</div>
+        <div class="rm-title">フルジャーニー分析・ブランド横断レポートの実装とリテールメディア価値の確立</div>
+        <div class="rm-desc">追加データを得た後、視聴→遅延購買→LTV向上→ブランドスイッチの全経路を分析する。同一期間のカテゴリ全体ベンチマークが整備されればブランド横断レポートも実現。スタッフ動画承認プラットフォームの提供によるインフルエンサー化支援・リテールコネクト参画・AI FAQとの統合で独自価値を確立する。</div>
+        <div style="margin-top:8px"><span class="tag t-red">フルジャーニー分析</span><span class="tag t-red">ブランド横断レポート</span><span class="tag t-red">リテールコネクト</span><span class="tag t-dim">スタッフ施策</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 05 必要なデータポイント ===== -->
+<div class="tab-panel" id="s05">
+  <div class="sec-label">DATA REQUIREMENTS</div>
+  <div class="sec-title">必要なデータポイント</div>
+  <div class="sec-desc">3つのSTEPそれぞれで「今あるデータ」「MCCMデータで追加できること」「STEP 3以降に必要なデータ」を整理しました。</div>
+
+  <div class="cat"><div class="cat-bar" style="background:var(--blue)"></div><div><div class="cat-title">STEP 1：Fireworkの既存レポートで取得済み</div><div class="cat-note">追加データ不要。今すぐ活用・深化できる</div></div></div>
+  <div class="card">
+    <table class="tbl">
+      <tr><th>データ項目</th><th>活用できる分析</th><th>状態</th></tr>
+      <tr><td>視聴者数・平均視聴分数・CTR・コメント率・リピーター比率</td><td>月次KPI管理・目標対比・トレンド追跡</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr><td>いいね×コメント×視聴分数の相関</td><td>エンゲージユーザー分析・施策効果検証</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr><td>商品カードクリックランキング（TOP30）</td><td>人気商品・カテゴリ傾向の把握</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr><td>競合4社との配信数値比較（視聴指標）</td><td>業界内ポジショニング・改善優先度の明確化</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr><td>fw_progress（視聴深度）</td><td>「深く見た人ほど買う」仮説の検証。SQLに存在するが未集計</td><td><span class="pill pill-part">データあり・未集計</span></td></tr>
+    </table>
+  </div>
+
+  <div class="cat"><div class="cat-bar" style="background:var(--yellow)"></div><div><div class="cat-title">STEP 2：MCCMデータで追加・強化できるデータ</div><div class="cat-note">各ライブ配信単位での計測。配信ごとの購買効果を初めて定量化できる</div></div></div>
+  <div class="card">
+    <table class="tbl">
+      <tr><th>データ項目</th><th>活用できる分析</th><th>状態</th></tr>
+      <tr class="add-row"><td>購買前後比・来店率・購入率リフト（配信単位）</td><td>各配信の購買効果を定量で証明。スポンサーへの報告根拠</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr class="add-row"><td>店舗 / EC別の購買データ（配信単位）</td><td>チャネル別の効果差。どちらに誘引効果が強いか</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr class="add-row"><td>都道府県・店舗別PI値（配信単位）</td><td>高PI値エリアへのデータ根拠付きオフライン施策提案</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr class="add-row"><td>顧客セグメント × 購買（配信単位）</td><td>どのセグメントが最も転換するかの配信単位での把握</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr class="add-row"><td>競合流入・流出（配信単位）</td><td>その配信で競合からどれだけ顧客を獲得・流出したか</td><td><span class="pill pill-done">取得済み</span></td></tr>
+      <tr class="add-row"><td>コメント「購入検討」率 × 実購買の突合</td><td>「買いに行く」コメントが実際の購買にどれだけつながるか</td><td><span class="pill pill-part">部分的に可能</span></td></tr>
+    </table>
+  </div>
+
+  <div class="cat"><div class="cat-bar" style="background:var(--green)"></div><div><div class="cat-title">STEP 3以降：MCCMへの提供依頼が必要なデータ</div><div class="cat-note">現状のデータ構造では取得できない。優先度別に整理</div></div></div>
+  <div class="card">
+    <table class="tbl">
+      <tr><th>優先度</th><th>データ項目</th><th>何を証明できるか</th><th>状態</th></tr>
+      <tr>
+        <td>🔴 高</td>
+        <td>goopon_id × 購買履歴（6〜12ヶ月）</td>
+        <td>視聴後の遅延購買・リピーター化・LTV向上の長期追跡。「数週間〜数ヶ月後の店舗購買」を初めて捕捉</td>
+        <td><span class="pill pill-no">未取得</span></td>
+      </tr>
+      <tr>
+        <td>🔴 高</td>
+        <td>対象商品以外の全カテゴリ購買データ（同一goopon_id）</td>
+        <td>「紹介商品以外への購買波及」の証明。メーカー全体・他カテゴリへの貢献が可視化できる</td>
+        <td><span class="pill pill-no">未取得</span></td>
+      </tr>
+      <tr>
+        <td>🟡 中</td>
+        <td>同一期間中の複数ブランド・カテゴリ全体のベンチマークデータ</td>
+        <td>「同じ土俵でのブランド横断比較」が実現。「コスメ系が最も購買転換が高い」等をデータで証明。媒体価値の定量証明の基盤に</td>
+        <td><span class="pill pill-future">将来的に依頼予定</span></td>
+      </tr>
+      <tr>
+        <td>🟡 中</td>
+        <td>非視聴リピーターの購買行動（対照群）</td>
+        <td>「視聴ありリピーター」vs「視聴なしリピーター」の購買差分。ライブ配信のチャーン防止効果を証明</td>
+        <td><span class="pill pill-no">未取得</span></td>
+      </tr>
+      <tr>
+        <td>🟡 中</td>
+        <td>来店頻度・アプリ接触頻度の長期変化</td>
+        <td>ライブ視聴後に来店頻度・アプリ接触が増加するかを長期計測。「LTVに効いている」を初めて証明</td>
+        <td><span class="pill pill-no">未取得</span></td>
+      </tr>
+      <tr>
+        <td>🟢 低（中長期）</td>
+        <td>スタッフ動画承認プラットフォームの整備 + スタッフ別動画パフォーマンス計測</td>
+        <td>スタッフがアップロードした動画の視聴数・クリック・購買転換をスタッフ別に計測。MCCのインセンティブ設計を支援するための根拠データになる。プラットフォーム導入が前提</td>
+        <td><span class="pill pill-no">仕組みなし</span></td>
+      </tr>
+      <tr>
+        <td>🟢 低（中長期）</td>
+        <td>店舗内サイネージ接触ログ × 購買</td>
+        <td>「ライブ視聴→サイネージ接触→購買」の複合経路。コネクテッドコマースの証明</td>
+        <td><span class="pill pill-no">仕組みなし</span></td>
+      </tr>
+      <tr>
+        <td>🟢 低（中長期）</td>
+        <td>AI FAQ接触 × 購買率</td>
+        <td>AI FAQとライブ配信の相乗効果。リテールコネクト内での独自差別化の根拠に</td>
+        <td><span class="pill pill-part">今後実装予定</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="hl g"><strong>最優先の依頼ポイント：</strong>「<strong>goopon_idの6ヶ月購買履歴</strong>」と「<strong>対象商品外の全カテゴリ購買データ</strong>」の2点が最優先。次いで「<strong>同一期間中の複数ブランド・カテゴリ全体のベンチマークデータ</strong>」が整備されることで、ブランド横断レポートへの道が開ける。STEP 2で構築したレポート実績を示しながら「さらにこのデータがあるとこう言えるようになる」という文脈でMCCに依頼する。</div>
+</div>
+
+</div>
+
+<script>
+function go(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
